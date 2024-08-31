@@ -11,6 +11,7 @@
 </head>
 <body>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/controls/OrbitControls.js"></script>
     <script>
     // Simplified OrbitControls
     class OrbitControls {
@@ -118,7 +119,7 @@
 
         // Create the sun
         const sunGeometry = new THREE.SphereGeometry(5, 32, 32);
-        const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        const sunMaterial = new THREE.MeshPhongMaterial({ color: 0xffff00 });
         const sun = new THREE.Mesh(sunGeometry, sunMaterial);
         scene.add(sun);
 
@@ -133,22 +134,21 @@
 
         // Planet data: [size, distance from sun, orbit speed, color]
         const planetData = [
-            [0.4, 10, 0.02, 0x8a8a8a],  // Mercury
-            [0.9, 15, 0.015, 0xffa500], // Venus
-            [1, 20, 0.01, 0x0000ff],    // Earth
-            [0.5, 25, 0.008, 0xff0000], // Mars
-            [3, 35, 0.005, 0xffa500],   // Jupiter
-            [2.5, 45, 0.004, 0xffd700], // Saturn
-            [1.8, 55, 0.003, 0x00ffff], // Uranus
-            [1.7, 65, 0.002, 0x0000ff], // Neptune
+            [0.4, 10, 0.6, 0x8a8a8a],  // Mercury
+            [0.9, 15, 0.45, 0xffa500], // Venus
+            [1, 20, 0.3, 0x0000ff],    // Earth
+            [0.5, 25, 0.24, 0xff0000], // Mars
+            [3, 35, 0.15, 0xffa500],   // Jupiter
+            [2.5, 45, 0.12, 0xffd700], // Saturn
+            [1.8, 55, 0.09, 0x00ffff], // Uranus
+            [1.7, 65, 0.06, 0x0000ff], // Neptune
         ];
-
         const planets = [];
 
         // Create planets
         planetData.forEach(([size, distance, orbitSpeed, color], index) => {
             const planetGeometry = new THREE.SphereGeometry(size, 32, 32);
-            const planetMaterial = new THREE.MeshPhongMaterial({ color, shininess: 30 });
+            const planetMaterial = new THREE.MeshPhongMaterial({ color, specular: 0xffffff, shininess: 100 });
             const planet = new THREE.Mesh(planetGeometry, planetMaterial);
 
             const orbitGeometry = new THREE.RingGeometry(distance - 0.1, distance + 0.1, 64);
@@ -178,7 +178,7 @@
 
             moonData.forEach(moon => {
                 const moonGeometry = new THREE.SphereGeometry(moon.size, 32, 32);
-                const moonMaterial = new THREE.MeshPhongMaterial({ color: moon.color });
+                const moonMaterial = new THREE.MeshPhongMaterial({ color: moon.color, specular: 0xffffff, shininess: 100 });
                 const moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
                 jupiter.add(moonMesh);
 
@@ -191,7 +191,7 @@
             });
         }
 
-        function createSaturnRings(saturn, scene) {
+        function createSaturnRings(planet, scene) {
             const ringGeometry = new THREE.RingGeometry(3.5, 5, 64);
             const ringMaterial = new THREE.MeshBasicMaterial({ 
                 color: 0xc2b280, 
@@ -201,7 +201,7 @@
             });
             const rings = new THREE.Mesh(ringGeometry, ringMaterial);
             rings.rotation.x = Math.PI / 2;
-            saturn.add(rings);
+            planet.add(rings);
         }
 
         // Animation loop
@@ -234,6 +234,37 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
+
+        // Handle touch events
+        document.addEventListener('touchstart', (event) => {
+            if (event.touches.length === 1) {
+                const touch = event.touches[0];
+                controls.rotateStart.set(touch.clientX, touch.clientY);
+            }
+        }, false);
+
+        document.addEventListener('touchmove', (event) => {
+            if (event.touches.length === 1) {
+                const touch = event.touches[0];
+                controls.rotateEnd.set(touch.clientX, touch.clientY);
+                controls.rotateDelta.subVectors(controls.rotateEnd, controls.rotateStart);
+
+                const element = controls.domElement;
+                controls.sphericalDelta.theta -= 2 * Math.PI * controls.rotateDelta.x / element.clientWidth;
+                controls.sphericalDelta.phi -= 2 * Math.PI * controls.rotateDelta.y / element.clientHeight;
+
+                controls.rotateStart.copy(controls.rotateEnd);
+                controls.update();
+            }
+        }, false);
+
+        document.addEventListener('touchend', () => {
+            controls.rotateStart.set(0, 0);
+            controls.rotateEnd.set(0, 0);
+            controls.rotateDelta.set(0, 0);
+            controls.sphericalDelta.set(0, 0);
+            controls.update();
+        }, false);
 
         console.log('Scene initialization complete');
     }
