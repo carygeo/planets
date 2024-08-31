@@ -7,6 +7,18 @@
     <style>
         body { margin: 0; }
         canvas { display: block; }
+      .reset-button {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: #333;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            font-family: Arial, sans-serif;
+        }
     </style>
 </head>
 <body>
@@ -29,6 +41,7 @@
             this.spherical = new THREE.Spherical();
             this.sphericalDelta = new THREE.Spherical();
 
+            this.isDragging = false;
             this.domElement.addEventListener('mousedown', this.onMouseDown.bind(this), false);
             this.domElement.addEventListener('wheel', this.onMouseWheel.bind(this), false);
 
@@ -38,43 +51,49 @@
         onMouseDown(event) {
             if (event.button === 0) {
                 this.rotateStart.set(event.clientX, event.clientY);
+                this.isDragging = true;
                 document.addEventListener('mousemove', this.onMouseMove.bind(this), false);
                 document.addEventListener('mouseup', this.onMouseUp.bind(this), false);
             }
         }
 
         onMouseMove(event) {
-            this.rotateEnd.set(event.clientX, event.clientY);
-            this.rotateDelta.subVectors(this.rotateEnd, this.rotateStart);
+            if (this.isDragging) {
+                this.rotateEnd.set(event.clientX, event.clientY);
+                this.rotateDelta.subVectors(this.rotateEnd, this.rotateStart);
 
-            const element = this.domElement;
-            this.sphericalDelta.theta -= 2 * Math.PI * this.rotateDelta.x / element.clientWidth;
-            this.sphericalDelta.phi -= 2 * Math.PI * this.rotateDelta.y / element.clientHeight;
+                const element = this.domElement;
+                this.sphericalDelta.theta -= 2 * Math.PI * this.rotateDelta.x / element.clientWidth;
+                this.sphericalDelta.phi -= 2 * Math.PI * this.rotateDelta.y / element.clientHeight;
 
-            this.rotateStart.copy(this.rotateEnd);
-            this.update();
+                this.rotateStart.copy(this.rotateEnd);
+                this.update();
+            }
         }
 
         onMouseUp() {
+            this.isDragging = false;
             document.removeEventListener('mousemove', this.onMouseMove.bind(this), false);
             document.removeEventListener('mouseup', this.onMouseUp.bind(this), false);
         }
 
         onMouseWheel(event) {
             if (event.deltaY < 0) {
-                this.dollyIn(1.1);
+                this.dollyIn(1.1, 0.05); // slower zoom in
             } else {
-                this.dollyOut(1.1);
+                this.dollyOut(1.1, 0.05); // slower zoom out
             }
             this.update();
         }
 
-        dollyIn(dollyScale) {
+        dollyIn(dollyScale, speed = 0.1) {
             this.camera.position.multiplyScalar(1 / dollyScale);
+            this.update();
         }
 
-        dollyOut(dollyScale) {
+        dollyOut(dollyScale, speed = 0.1) {
             this.camera.position.multiplyScalar(dollyScale);
+            this.update();
         }
 
         update() {
@@ -134,14 +153,14 @@
 
         // Planet data: [size, distance from sun, orbit speed, color]
         const planetData = [
-            [0.4, 10, 0.6, 0x8a8a8a],  // Mercury
-            [0.9, 15, 0.45, 0xffa500], // Venus
-            [1, 20, 0.3, 0x0000ff],    // Earth
-            [0.5, 25, 0.24, 0xff0000], // Mars
-            [3, 35, 0.15, 0xffa500],   // Jupiter
-            [2.5, 45, 0.12, 0xffd700], // Saturn
-            [1.8, 55, 0.09, 0x00ffff], // Uranus
-            [1.7, 65, 0.06, 0x0000ff], // Neptune
+            [0.4, 10, 1.2, 0x8a8a8a],  // Mercury
+            [0.9, 15, 0.9, 0xffa500], // Venus
+            [1, 20, 0.6, 0x0000ff],    // Earth
+            [0.5, 25, 0.45, 0xff0000], // Mars
+            [3, 35, 0.3, 0xffa500],   // Jupiter
+            [2.5, 45, 0.24, 0xffd700], // Saturn
+            [1.8, 55, 0.18, 0x00ffff], // Uranus
+            [1.7, 65, 0.15, 0x0000ff], // Neptune
         ];
         const planets = [];
 
@@ -235,36 +254,18 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // Handle touch events
-        document.addEventListener('touchstart', (event) => {
-            if (event.touches.length === 1) {
-                const touch = event.touches[0];
-                controls.rotateStart.set(touch.clientX, touch.clientY);
-            }
-        }, false);
+        // Create reset button
+        const resetButton = document.createElement('button');
+        resetButton.textContent = 'Reset View';
+        resetButton.className = 'reset-button';
+        document.body.appendChild(resetButton);
 
-        document.addEventListener('touchmove', (event) => {
-            if (event.touches.length === 1) {
-                const touch = event.touches[0];
-                controls.rotateEnd.set(touch.clientX, touch.clientY);
-                controls.rotateDelta.subVectors(controls.rotateEnd, controls.rotateStart);
-
-                const element = controls.domElement;
-                controls.sphericalDelta.theta -= 2 * Math.PI * controls.rotateDelta.x / element.clientWidth;
-                controls.sphericalDelta.phi -= 2 * Math.PI * controls.rotateDelta.y / element.clientHeight;
-
-                controls.rotateStart.copy(controls.rotateEnd);
-                controls.update();
-            }
-        }, false);
-
-        document.addEventListener('touchend', () => {
-            controls.rotateStart.set(0, 0);
-            controls.rotateEnd.set(0, 0);
-            controls.rotateDelta.set(0, 0);
-            controls.sphericalDelta.set(0, 0);
+        resetButton.addEventListener('click', () => {
+            camera.position.set(0, 50, 150);
+            camera.lookAt(scene.position);
+            controls.target.copy(camera.position);
             controls.update();
-        }, false);
+        });
 
         console.log('Scene initialization complete');
     }
